@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>To-Do Nativo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Minhas Tarefas</h1>
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="O que você precisa fazer?">
+            <button id="addTaskBtn">Adicionar</button>
+        </div>
+        <div class="timer-adjust">
+            <label for="timerDuration">Duração do Timer (segundos):</label>
+            <input type="number" id="timerDuration" placeholder="Ex: 1500">
+            <button id="adjustTimerBtn">Ajustar Timer</button>
+        </div>
+        <ul id="taskList"></ul>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>
