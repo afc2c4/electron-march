@@ -127,13 +127,15 @@ ipcMain.on('update-badge', (event, count)=>{
 });
 
 ipcMain.on('show-native-notification', (event, title, body) => {
-    if(Notification.isSupported()){
-        new Notification.isSupported({
-            title: title,
-            body: body,
-            icon: path.join(__dirname, 'icon.png')
-        }).show();
+    if (!Notification.isSupported()) {
+        return;
     }
+
+    new Notification({
+        title,
+        body,
+        icon: path.join(__dirname, 'icon.png')
+    }).show();
 });
 
 
