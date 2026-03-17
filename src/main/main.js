@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, globalShortcut, dialog, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, globalShortcut, dialog, shell, clipboard, Notification, net, nativeTheme } = require('electron');
+
 const path = require('path');
 const fs = require('fs');
 
@@ -33,15 +34,21 @@ function setupApplicationMenu() {
             ]
         },
         {
-            label: 'Ajuda',
+            label: 'Editar',
             submenu: [
-                {
-                    label: 'Documentação Oficial',
-                    click: () => {
-                        // SHELL: Abre no navegador padrão (seguro e isolado)
-                        shell.openExternal('[https://electronjs.org](https://electronjs.org)');
-                    }
-                }
+                {role:'undo', label: 'Desfazer'},
+                {role:'redo', label: 'Refazer'},
+                {type:'separator'},
+                {role:'cut', label: 'Cortar'},
+                {role:'copy', label: 'Copiar'},
+                {role:'paste', label: 'Colar'},
+            ],
+            label: 'Visualizar',
+            submenu: [
+                {role:'reload', label: 'Recarregar'},
+                {role:'toggledevtools', label: 'Ferramentas'},
+                {type:'separator'},
+                {role:'togglefullscreen', label: 'Tela Cheia'}
             ]
         }
     ];
@@ -70,9 +77,9 @@ app.on('will-quit', () => {
 // 2. SYSTEM TRAY (A Vida Oculta)
 // ==========================================================
 function setupTray() {
-    // Nota: Use um png transparente. Se for macOS, adicione "Template" no nome (ex: iconTemplate.png)
-    // Para fins de teste, você pode criar um ícone vazio ou apontar para um genérico.
-    tray = new Tray(path.join(__dirname, 'icon.png')); // Ensure the icon exists in the correct path
+    
+    const iconPath = path.join(__dirname, 'icon.png');
+    tray = new Tray(iconPath);
     
     const contextMenu = Menu.buildFromTemplate([
         { label: 'Mostrar App', click: () => mainWindow.show() },
@@ -89,14 +96,14 @@ function setupTray() {
 ipcMain.on('show-context-menu', (event, taskText) => {
     const contextMenu = Menu.buildFromTemplate([
         {
-            label: 'Copiar Texto da Tarefa',
+            label: 'Copiar Tarefa',
             click: () => {
                 // CLIPBOARD: Copia sem o usuário usar Ctrl+C
                 clipboard.writeText(taskText);
             }
         },
         { type: 'separator' },
-        { role: 'delete', label: 'Deletar' } // Exemplo de Role nativa
+        { role: 'delete', label: 'Remover' } // Exemplo de Role nativa
     ]);
     contextMenu.popup(BrowserWindow.fromWebContents(event.sender));
 });
@@ -113,6 +120,42 @@ ipcMain.on('timer-stopped', () => {
     if (activeTimers > 0) activeTimers--;
     app.setBadgeCount(activeTimers);
 });
+
+// atualiza a bolinha vermelha
+ipcMain.on('update-badge', (event, count)=>{
+    app.setBadgeCount(count);
+});
+
+ipcMain.on('show-native-notification', (event, title, body) => {
+    if(Notification.isSupported()){
+        new Notification.isSupported({
+            title: title,
+            body: body,
+            icon: path.join(__dirname, 'icon.png')
+        }).show();
+    }
+});
+
+
+ipcMain.handle('fetch-suggestion', () => {
+    return new Promise((resolve, reject) => {
+        const request = net.request('http://dummyjson.com/quotes/random');
+
+        request.on('response', (response)=>{
+            let body = '';
+            response.on('data', (chunk)=> body += chunk);
+            response.on('end',() => {
+                try {
+                    const data = JSON.parse(body);
+                    resolve(data.quote);
+                } catch (e){
+                    reject('Erro ao interpretar os dados');
+                }
+            })
+        })
+    })
+});
+
 
 // ==========================================================
 // 5. DIALOG E SHELL (Exportação Segura)

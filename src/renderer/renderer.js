@@ -1,9 +1,44 @@
 const taskInput = document.getElementById('taskInput');
 const addTaskBtn = document.getElementById('addTaskBtn');
 const taskList = document.getElementById('taskList');
+const suggestTaskBtn = document.getElementById('suggestTaskBtn');
+const connectionStatus = document.getElementById('connectionStatus');
+
 
 // Arrays para guardar os dados (apenas em memória para este exemplo)
 let tasks = [];
+
+
+// Conectividade
+function updateOnlineStatus(){
+    if(navigator.onLine){
+        connectionStatus.textContent = "Status: Conectado (online)"
+        connectionStatus.className = "status-bar online"
+        suggestTaskBtn.disable = false;
+        suggestTaskBtn.innerText = "Sugerir Tarefa"
+    } else  {
+        connectionStatus.textContent = "Status: Desconectado"
+        connectionStatus.className = "status-bar offline"
+        suggestTaskBtn.disable = true;
+        suggestTaskBtn.innerText = "Sugestoes Indisponiveis"
+    }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+suggestTaskBtn.addEventListener('click', async () => {
+    suggestTaskBtn.innerText = "Buscando...";
+    try {
+        const suggestion = await window.electronAPI.fetchSuggestion();
+        taskInput.value = suggestion;
+    } catch (error){
+        alert("Erro aoo buscar sugestao: " + error);
+    } finally {
+        updateOnlineStatus();
+    }
+})
 
 // Adicionar Tarefa
 addTaskBtn.addEventListener('click', () => {
@@ -13,6 +48,8 @@ addTaskBtn.addEventListener('click', () => {
     tasks.push(text);
     renderTask(text);
     taskInput.value = '';
+
+    window.electronAPI.updateBadge(tasks.length);
 });
 
 // Foco automático pelo Atalho Global
@@ -23,8 +60,8 @@ window.electronAPI.onFocusInput(() => {
 // Renderizar Item
 function renderTask(text) {
     const li = document.createElement('li');
-    
     const span = document.createElement('span');
+
     span.textContent = text;
     
     // Disparar Menu de Contexto (Clique Direito)
@@ -35,7 +72,7 @@ function renderTask(text) {
 
     const timerBtn = document.createElement('button');
     timerBtn.className = 'timer-btn';
-    timerBtn.textContent = 'Iniciar Timer 25m';
+    timerBtn.textContent = 'Iniciar Timer (10s)';
     
     let isTiming = false;
     let timerId = null;
@@ -60,10 +97,9 @@ function renderTask(text) {
     timerBtn.addEventListener('click', () => {
         if (!isTiming) {
             isTiming = true;
-            const durationInput = document.getElementById('timerDuration');
-            let remainingTime = parseInt(durationInput.value, 10) || 0.10 * 60; // Usar valor ajustado ou padrão de 25 minutos
-            timerBtn.textContent = formatTime(remainingTime);
-            timerBtn.style.backgroundColor = '#ff5630'; // Vermelho
+            let remainingTime = 10;
+            timerBtn.textContent = `${remainingTime}s`;
+            timerBtn.style.backgroundColor = '#ff5630'; 
 
             // Avisa o SO que temos uma tarefa rodando (adiciona Badge)
             window.electronAPI.startTimer();
@@ -71,12 +107,15 @@ function renderTask(text) {
             // Atualizar o texto do botão a cada segundo
             timerId = setInterval(() => {
                 remainingTime--;
-                timerBtn.textContent = formatTime(remainingTime);
-
+                timerBtn.textContent = `${remainingTime}s`;
+                
                 if (remainingTime <= 0) {
                     clearInterval(timerId);
-                    stopTimer();
-                    new Notification('Timer Concluído!', { body: text });
+                    isTiming = false;
+                    timerBtn.textContent = 'Concluido';
+                    timerBtn.style.backgroundColor = '#36b37e';
+                   
+                    window.electronAPI.showNativeNotification('Timer concluido!', `A tarefa "${text}" terminou.`)
                 }
             }, 1000);
         } else {
