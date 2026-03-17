@@ -137,23 +137,43 @@ ipcMain.on('show-native-notification', (event, title, body) => {
 });
 
 
-ipcMain.handle('fetch-suggestion', () => {
+ipcMain.handle('fetch-suggestion', async () => {
     return new Promise((resolve, reject) => {
-        const request = net.request('http://dummyjson.com/quotes/random');
+        const request = net.request('https://dummyjson.com/quotes/random');
 
-        request.on('response', (response)=>{
+        request.on('response', (response) => {
             let body = '';
-            response.on('data', (chunk)=> body += chunk);
-            response.on('end',() => {
+
+            response.on('data', (chunk) => {
+                body += chunk;
+            });
+
+            response.on('end', () => {
+                if (response.statusCode < 200 || response.statusCode >= 300) {
+                    reject(`Erro HTTP ao buscar sugestão: ${response.statusCode}`);
+                    return;
+                }
+
                 try {
                     const data = JSON.parse(body);
+                    if (!data || typeof data.quote !== 'string') {
+                        reject('Resposta inválida ao buscar sugestão.');
+                        return;
+                    }
+
                     resolve(data.quote);
-                } catch (e){
-                    reject('Erro ao interpretar os dados');
+                } catch (error) {
+                    reject('Erro ao interpretar os dados da sugestão.');
                 }
-            })
-        })
-    })
+            });
+        });
+
+        request.on('error', () => {
+            reject('Erro de rede ao buscar sugestão.');
+        });
+
+        request.end();
+    });
 });
 
 
